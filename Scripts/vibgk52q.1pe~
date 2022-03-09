@@ -1,0 +1,848 @@
+using System; 
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
+
+
+/*
+ * 1: dirt
+ * 2: dirtTop
+*/
+
+public class PlaceAndDestroy : MonoBehaviour
+{
+    // Start is called before the first frame update
+    public Transform cameraPos;
+    public float rayCastDistance = 3;
+
+    bool pressDestroy = false;
+    bool pressPlace = false;
+
+    Material[,] overlays = new Material[2,10];
+    string[] overlaysName = { "dirtTop", "dirtTop" };
+
+    float waitingTime = 10;
+    bool lastBreakingOverlay = false;
+    bool isBreakingABlock = false;
+
+    float itemDropWidth = 0.2f;
+    public Transform dirtTopSpawnParent;
+    float itemDropYMargin = 0;
+    float itemDropSpinSpeed = 0.5f;
+
+    bool objectIsMoving = false;
+
+    int inventoryPos = 0;
+    float boxSwitchDelay = 3;
+    float boxSwitchTime;
+    public RectTransform inventorySelectedPos;
+
+    string[] inventoryObjectArray = new string[9];
+
+    string overlaysURL = "brokenOverlays/";
+    string itemDropsURL = "Images/itemDropImages/";
+    string itemsURL = "Prefabs/Items/";
+   
+    public GameObject box1Parent;
+    public GameObject box2Parent;
+    public GameObject box3Parent;
+    public GameObject box4Parent;
+    public GameObject box5Parent;
+    public GameObject box6Parent;
+    public GameObject box7Parent;
+    public GameObject box8Parent;
+    public GameObject box9Parent;
+
+    RawImage box1;
+    RawImage box2;
+    RawImage box3;
+    RawImage box4;
+    RawImage box5;
+    RawImage box6;
+    RawImage box7;
+    RawImage box8;
+    RawImage box9;
+
+    Text box1Text;
+    Text box2Text;
+    Text box3Text;
+    Text box4Text;
+    Text box5Text;
+    Text box6Text;
+    Text box7Text;
+    Text box8Text;
+    Text box9Text;
+
+    bool isCollectingItemDrop = false;
+    bool triggerThisCollision = true;
+
+    public Material pig_defaultMaterial, pig_redMaterial;
+    public AudioSource eatingSound;
+    float eatingTime = 3; //????
+
+    public Text hungerAddition, saturationAddition, exhaustionAddition;
+
+    bool hasEaten = false; 
+
+    void Start()
+    {
+
+        box1 = box1Parent.transform.GetChild(0).gameObject.GetComponent<RawImage>();
+        box2 = box2Parent.transform.GetChild(0).gameObject.GetComponent<RawImage>();
+        box3 = box3Parent.transform.GetChild(0).gameObject.GetComponent<RawImage>();
+        box4 = box4Parent.transform.GetChild(0).gameObject.GetComponent<RawImage>();
+        box5 = box5Parent.transform.GetChild(0).gameObject.GetComponent<RawImage>();
+        box6 = box6Parent.transform.GetChild(0).gameObject.GetComponent<RawImage>();
+        box7 = box7Parent.transform.GetChild(0).gameObject.GetComponent<RawImage>();
+        box8 = box8Parent.transform.GetChild(0).gameObject.GetComponent<RawImage>();
+        box9 = box9Parent.transform.GetChild(0).gameObject.GetComponent<RawImage>();
+
+        box1.enabled = false;
+        box2.enabled = false;
+        box3.enabled = false;
+        box4.enabled = false;
+        box5.enabled = false;
+        box6.enabled = false;
+        box7.enabled = false;
+        box8.enabled = false;
+        box9.enabled = false;
+
+        box1Text = box1Parent.transform.GetChild(1).gameObject.GetComponent<Text>();
+        box2Text = box2Parent.transform.GetChild(1).gameObject.GetComponent<Text>();
+        box3Text = box3Parent.transform.GetChild(1).gameObject.GetComponent<Text>();
+        box4Text = box4Parent.transform.GetChild(1).gameObject.GetComponent<Text>();
+        box5Text = box5Parent.transform.GetChild(1).gameObject.GetComponent<Text>();
+        box6Text = box6Parent.transform.GetChild(1).gameObject.GetComponent<Text>();
+        box7Text = box7Parent.transform.GetChild(1).gameObject.GetComponent<Text>();
+        box8Text = box8Parent.transform.GetChild(1).gameObject.GetComponent<Text>();
+        box9Text = box9Parent.transform.GetChild(1).gameObject.GetComponent<Text>();
+
+        box1Text.enabled = false; 
+        box2Text.enabled = false;
+        box3Text.enabled = false; 
+        box4Text.enabled = false; 
+        box5Text.enabled = false; 
+        box6Text.enabled = false; 
+        box7Text.enabled = false; 
+        box8Text.enabled = false; 
+        box9Text.enabled = false; 
+
+        for(int i = 0; i < 2; i++)
+        {
+            for(int j = 0; j < 10; j++)
+            {
+                overlays[i, j] = Resources.Load<Material>(overlaysURL +  overlaysName[i] + "Overlays/" + overlaysName[i] + "-material-" + j);
+            }
+        }
+
+        inventorySelectedPos.position = box1.transform.position;
+
+    }
+
+
+    void Update()
+    {
+
+        hasEaten = false; 
+
+        //GameObject[] itemDrops = GameObject.FindGameObjectsWithTag("ItemDrop");
+
+        //foreach(GameObject go in itemDrops) //när itemdrop är på mark --> gå till itemdropYMargin
+        //{
+        //    CheckIfObjectIsMoving(go.transform);
+        //    if(!objectIsMoving && go.GetComponent<Rigidbody>().isKinematic == false)
+        //    {
+        //        go.GetComponent<Rigidbody>().isKinematic = true;
+        //        go.transform.position = new Vector3(go.transform.position.x, go.transform.position.y + itemDropYMargin, go.transform.position.z);
+        //    }
+        //}
+
+        //for (int i = 0; i < itemDrops.Length; i++)
+        //{
+        //    itemDrops[i].transform.rotation = Quaternion.Euler(0f, 0f, itemDropSpinSpeed * Time.deltaTime);
+        //}
+
+        if (Input.GetMouseButton(0))
+            pressDestroy = true;
+        else
+            pressDestroy = false;
+
+        if (Input.GetMouseButton(1) && !pressDestroy)
+            pressPlace = true;
+        else
+            pressPlace = false;
+
+        if(Input.GetKey(KeyCode.RightArrow) && boxSwitchTime == 0) //flytta markör i inventory
+        {
+            if(inventoryPos == 8)
+            {
+                inventoryPos = 0;
+                inventorySelectedPos.position = box1.transform.position;
+            }
+            else
+            {
+                inventoryPos++;
+                switch(inventoryPos)
+                {
+                    case 0:
+                        inventorySelectedPos.position = box1.transform.position;
+                        break; 
+                    case 1:
+                        inventorySelectedPos.position = box2.transform.position;
+                        break;
+                    case 2:
+                        inventorySelectedPos.position = box3.transform.position;
+                        break;
+                    case 3:
+                        inventorySelectedPos.position = box4.transform.position;
+                        break;
+                    case 4:
+                        inventorySelectedPos.position = box5.transform.position;
+                        break;
+                    case 5:
+                        inventorySelectedPos.position = box6.transform.position;
+                        break;
+                    case 6:
+                        inventorySelectedPos.position = box7.transform.position;
+                        break;
+                    case 7:
+                        inventorySelectedPos.position = box8.transform.position;
+                        break;
+                    case 8:
+                        inventorySelectedPos.position = box9.transform.position;
+                        break;
+                }
+            }
+
+            boxSwitchTime = boxSwitchDelay;
+        }
+        else if (Input.GetKey(KeyCode.LeftArrow) && boxSwitchTime == 0) // flytta markör i inventory
+        {
+            if (inventoryPos == 0)
+            {
+                inventoryPos = 8;
+                inventorySelectedPos.position = box9.transform.position; 
+            }
+            else
+            {
+                inventoryPos--;
+                switch (inventoryPos)
+                {
+                    case 0:
+                        inventorySelectedPos.position = box1.transform.position;
+                        break;
+                    case 1:
+                        inventorySelectedPos.position = box2.transform.position;
+                        break;
+                    case 2:
+                        inventorySelectedPos.position = box3.transform.position;
+                        break;
+                    case 3:
+                        inventorySelectedPos.position = box4.transform.position;
+                        break;
+                    case 4:
+                        inventorySelectedPos.position = box5.transform.position;
+                        break;
+                    case 5:
+                        inventorySelectedPos.position = box6.transform.position;
+                        break;
+                    case 6:
+                        inventorySelectedPos.position = box7.transform.position;
+                        break;
+                    case 7:
+                        inventorySelectedPos.position = box8.transform.position;
+                        break;
+                    case 8:
+                        inventorySelectedPos.position = box9.transform.position;
+                        break;
+                }
+            }
+
+            boxSwitchTime = boxSwitchDelay;
+        }
+
+        if (boxSwitchTime > 0)
+            boxSwitchTime--;
+
+        if (Input.GetKeyDown(KeyCode.Alpha1))
+            inventorySelectedPos.position = new Vector3(box1.transform.position.x, inventorySelectedPos.position.y, inventorySelectedPos.position.z);
+        else if (Input.GetKeyDown(KeyCode.Alpha2))
+            inventorySelectedPos.position = new Vector3(box2.transform.position.x, inventorySelectedPos.position.y, inventorySelectedPos.position.z);
+        else if (Input.GetKeyDown(KeyCode.Alpha3))
+            inventorySelectedPos.position = new Vector3(box3.transform.position.x, inventorySelectedPos.position.y, inventorySelectedPos.position.z);
+        else if (Input.GetKeyDown(KeyCode.Alpha4))
+            inventorySelectedPos.position = new Vector3(box4.transform.position.x, inventorySelectedPos.position.y, inventorySelectedPos.position.z);
+        else if (Input.GetKeyDown(KeyCode.Alpha5))
+            inventorySelectedPos.position = new Vector3(box5.transform.position.x, inventorySelectedPos.position.y, inventorySelectedPos.position.z);
+        else if (Input.GetKeyDown(KeyCode.Alpha6))
+            inventorySelectedPos.position = new Vector3(box6.transform.position.x, inventorySelectedPos.position.y, inventorySelectedPos.position.z);
+        else if (Input.GetKeyDown(KeyCode.Alpha7))
+            inventorySelectedPos.position = new Vector3(box7.transform.position.x, inventorySelectedPos.position.y, inventorySelectedPos.position.z);
+        else if (Input.GetKeyDown(KeyCode.Alpha8))
+            inventorySelectedPos.position = new Vector3(box8.transform.position.x, inventorySelectedPos.position.y, inventorySelectedPos.position.z);
+        else if (Input.GetKeyDown(KeyCode.Alpha9))
+            inventorySelectedPos.position = new Vector3(box9.transform.position.x, inventorySelectedPos.position.y, inventorySelectedPos.position.z);
+
+        Debug.DrawRay(cameraPos.position, cameraPos.TransformDirection(Vector3.forward), Color.cyan);
+
+        RaycastHit hit;
+        bool objectWasHit = Physics.Raycast(cameraPos.position, cameraPos.TransformDirection(Vector3.forward), out hit, rayCastDistance); //om någonting inom avståndet har träffats
+        
+        if(objectWasHit && pressDestroy && !isBreakingABlock && hit.collider.gameObject.tag == "Block")
+        { 
+            isBreakingABlock = true;
+            StartCoroutine(WaitThenDestroy(0.075f/waitingTime, hit));
+            isBreakingABlock = false;
+        }
+        else if(objectWasHit && pressDestroy && hit.collider.gameObject.tag == "Animal")
+        {
+            hit.collider.gameObject.GetComponent<MeshRenderer>().material = pig_redMaterial;
+        }
+
+        if(pressPlace)
+        {
+            PlaceOrEat(hit);
+        }
+
+        if(hasEaten)
+        {
+            int i = int.Parse(hungerAddition.text);
+            i += 3; //pork
+            hungerAddition.text = i + "";
+
+            float f = int.Parse(saturationAddition.text);
+            f += 1.8f;
+            saturationAddition.text = f + "";
+        }
+        else
+        {
+            hungerAddition.text = "0";
+            saturationAddition.text = "0";
+        }
+
+
+    }
+
+    //void OnCollisionEnter(Collision collision)
+    //{
+    //    print("collisionenter place and destroy");
+    //}
+
+    //IEnumerator CheckIfObjectIsMoving(Transform t) {
+    //    float sek0pos;
+    //    float sek1pos;
+
+    //    sek0pos = t.position.y;
+    //    yield return new WaitForSeconds(0.5f); // Wait one second
+    //    sek1pos = t.position.y;
+
+    //       if ((Mathf.Abs(sek1pos - sek0pos)) > 0.0005)
+    //           objectIsMoving = true;
+    //       else
+    //           objectIsMoving = false;
+
+    //}
+
+    void OnCollisionEnter(Collision collision)
+    {
+
+
+        GameObject otherObject = collision.gameObject;
+
+        if (otherObject.tag == "ItemDrop" && !isCollectingItemDrop)
+        {
+            isCollectingItemDrop = true;
+            CollectItemDrop(otherObject);
+        }
+
+        isCollectingItemDrop = false;
+        
+    }
+
+    void OnTriggerEnter(Collider other)
+    {
+        Debug.Log("triggerenter");
+
+        //BoxCollider boxCol = hit.collider as BoxCollider;
+
+        //Vector3 localPoint = hit.transform.InverseTransformPoint(hit.point);
+        //Vector3 localDir = localPoint.normalized;
+
+        //float verticalPos = Vector3.Dot(localDir, Vector3.up);
+
+        //if (verticalPos > 0) // om collision är över other 
+        //{
+        //    other.GetComponent<Rigidbody>().isKinematic = true;
+        //    other.transform.position = new Vector3(other.transform.position.x, other.transform.position.y + 0.2f, other.transform.position.z);
+        //}
+
+        //if (other.gameObject.tag == "Player")
+        //{
+        //    destroyItemDrop = true;
+        //}
+        //else
+        //{
+        //    destroyItemDrop = false;
+        //}
+
+    }
+
+   
+
+    void CollectItemDrop(GameObject go)
+    {
+        Debug.Log("CollectItemDrop");
+
+        bool objectIsInInventory = false;
+
+        for (int i = 0; i < 9; i++) // om det finns lediga plaster = collecta, annars gör inget 
+        {
+            if (inventoryObjectArray[i] == go.name)
+            {
+
+                bool isFull = false;
+                switch (i)
+                {
+                    case 0: if (box1Text.text.Equals("64")) isFull = true; break;
+                    case 1: if (box2Text.text.Equals("64")) isFull = true; break;
+                    case 2: if (box3Text.text.Equals("64")) isFull = true; break;
+                    case 3: if (box4Text.text.Equals("64")) isFull = true; break;
+                    case 4: if (box5Text.text.Equals("64")) isFull = true; break;
+                    case 5: if (box6Text.text.Equals("64")) isFull = true; break;
+                    case 6: if (box7Text.text.Equals("64")) isFull = true; break;
+                    case 7: if (box8Text.text.Equals("64")) isFull = true; break;
+                    case 8: if (box9Text.text.Equals("64")) isFull = true; break;
+                }
+
+
+                if (!isFull)
+                {
+                    objectIsInInventory = true;
+                    AddToInventory(i);
+                    Destroy(go);
+                    return;
+                }
+            }
+        }
+
+        if (!objectIsInInventory)
+        {
+            for (int i = 0; i < 9; i++)
+            {
+                if (inventoryObjectArray[i] == null)
+                {
+                    inventoryObjectArray[i] = go.name;
+                    PutInInventory(go, i);
+                    Destroy(go);
+                    return;
+                }
+            }
+        }
+        
+
+    }
+
+    void AddToInventory(int i)
+    {
+        print("AddToInventory");
+
+        int number = 0;
+
+        switch (i)
+        {
+            case 0:
+                if (!box1Text.enabled) { box1Text.text = "2"; box1Text.enabled = true; }
+                else { number = Int32.Parse(box1Text.text); number++; box1Text.text = number + ""; }
+                break;
+            case 1:
+                if (!box2Text.enabled) { box2Text.text = "2"; box2Text.enabled = true; }
+                else { number = Int32.Parse(box2Text.text); number++; box2Text.text = number + ""; }
+                break;
+            case 2:
+                if (!box3Text.enabled) { box3Text.text = "2"; box3Text.enabled = true; }
+                else { number = Int32.Parse(box3Text.text); number++; box3Text.text = number + ""; }
+                break;
+            case 3:
+                if (!box4Text.enabled) { box4Text.text = "2"; box4Text.enabled = true; }
+                else { number = Int32.Parse(box4Text.text); number++; box4Text.text = number + ""; }
+                break;
+            case 4:
+                if (!box5Text.enabled) { box5Text.text = "2"; box5Text.enabled = true; }
+                else { number = Int32.Parse(box5Text.text); number++; box5Text.text = number + ""; }
+                break;
+            case 5:
+                if (!box6Text.enabled) { box6Text.text = "2"; box6Text.enabled = true; }
+                else { number = Int32.Parse(box6Text.text); number++; box6Text.text = number + ""; }
+                break;
+            case 6:
+                if (!box7Text.enabled) { box7Text.text = "2"; box7Text.enabled = true; }
+                else { number = Int32.Parse(box7Text.text); number++; box7Text.text = number + ""; }
+                break;
+            case 7:
+                if (!box8Text.enabled) { box8Text.text = "2"; box8Text.enabled = true; }
+                else { number = Int32.Parse(box8Text.text); number++; box8Text.text = number + ""; }
+                break;
+            case 8:
+                if (!box9Text.enabled) { box9Text.text = "2"; box9Text.enabled = true; }
+                else { number = Int32.Parse(box9Text.text); number++; box9Text.text = number + ""; }
+                break;
+            default: break; 
+        }
+
+    }
+ 
+    void PutInInventory(GameObject go, int i)
+    {
+        print("PutInInventory");
+
+        string itemDropName = "";
+
+        if(go.name == "dirtTopPrefab(Clone)")
+        {
+            itemDropName = "dirt-itemDrop";
+        }
+        else
+        {
+            string gameObjectName = go.name.Substring(0, go.name.Length - 13);
+            itemDropName = gameObjectName + "-itemDrop"; 
+        }
+
+
+        Texture2D itemDropTexture = Resources.Load<Texture2D>(itemDropsURL + itemDropName);
+
+        switch(i)
+        {
+            case 0:
+                box1.enabled = true;
+                box1.texture = itemDropTexture;
+                break;
+            case 1:
+                box2.enabled = true;
+                box2.texture = itemDropTexture;
+                break;
+            case 2:
+                box3.enabled = true;
+                box3.texture = itemDropTexture;
+                break;
+            case 3:
+                box4.enabled = true;
+                box4.texture = itemDropTexture;
+                break;
+            case 4:
+                box5.enabled = true;
+                box5.texture = itemDropTexture;
+                break;
+            case 5:
+                box6.enabled = true;
+                box6.texture = itemDropTexture;
+                break;
+            case 6:
+                box7.enabled = true;
+                box7.texture = itemDropTexture;
+                break;
+            case 7:
+                box8.enabled = true;
+                box8.texture = itemDropTexture;
+                break;
+            case 8:
+                box9.enabled = true;
+                box9.texture = itemDropTexture;
+                break;
+        }
+
+    }
+
+    void ChangeBlockMaterial(RaycastHit hit, int i)
+    {
+        try
+        {
+            hit.collider.GetComponent<Renderer>().material = overlays[0, i];
+        }
+        catch(NullReferenceException ex) {
+            
+        }
+    }
+
+    void ChangeBlockMaterial(Collider collider, int i)
+    {
+        collider.GetComponent<Renderer>().material = overlays[0, i];
+    }
+
+    IEnumerator WaitThenDestroy(float sec, RaycastHit hit)
+    {
+        for (int i = 0; i < 9; i++)
+        {
+            if(pressDestroy)
+            {
+                yield return new WaitForSeconds(sec);
+                ChangeBlockMaterial(hit, i);
+
+                if (i == 8)
+                    lastBreakingOverlay = true;
+                else
+                    lastBreakingOverlay = false; 
+            }
+            else
+            {
+                ChangeBlockMaterial(hit, 9);
+            }
+        }
+
+        if (pressDestroy && lastBreakingOverlay)
+        {
+            DestoryBlock(hit);
+        }
+    }
+    IEnumerator Wait(float time)
+    {
+        yield return new WaitForSeconds(time*Time.deltaTime);
+    }
+
+    void DestoryBlock(RaycastHit hit) //hit = det som ska förstöras (måste vara ett block eftersom att destroyblock endast kallas som sist efter alla ChangeBlockMaterial()
+    {
+
+        Collider collider = hit.collider;
+
+        try
+        {
+            Vector3 colCenter = collider.transform.position;
+
+            Collider clone = Instantiate(collider, new Vector3(colCenter.x, colCenter.y, colCenter.z), collider.transform.rotation, dirtTopSpawnParent);
+            ChangeBlockMaterial(clone, 9);
+
+            clone.gameObject.tag = "ItemDrop";
+
+            BoxCollider boxCol = clone.gameObject.GetComponent<BoxCollider>();
+
+            //boxCol.center = new Vector3(clone.bounds.center.x, clone.bounds.center.y - smallBlockYMargin / 2, clone.bounds.center.z);
+            boxCol.size = new Vector3(boxCol.size.x, boxCol.size.y /*+ smallBlockYMargin*/, boxCol.size.z);
+
+            //clone.gameObject.AddComponent<Rigidbody>();
+            //Rigidbody boxRig = clone.gameObject.GetComponent<Rigidbody>();
+            //boxRig.freezeRotation = true;
+            //boxRig.mass = 0.8f;
+
+            float sizeX = clone.GetComponent<Renderer>().bounds.size.x;
+            float sizeY = clone.GetComponent<Renderer>().bounds.size.y;
+            float sizeZ = clone.GetComponent<Renderer>().bounds.size.z;
+
+            Vector3 rescale = clone.transform.localScale;
+
+            rescale.x = itemDropWidth * rescale.x / sizeX;
+            rescale.y = itemDropWidth * rescale.y / sizeY;
+            rescale.z = itemDropWidth * rescale.z / sizeZ;
+
+            clone.transform.localScale = rescale;
+
+            //float forceX = UnityEngine.Random.Range(-2f, 2f);
+            //float forceZ = UnityEngine.Random.Range(-2f, 2f);
+            //boxRig.AddForce(forceX, 2f, forceZ, ForceMode.Impulse);
+
+            Destroy(collider.gameObject);
+
+        }
+        catch (NullReferenceException nre) { }
+        
+    }
+
+    void PlaceOrEat(RaycastHit hit)
+    {
+
+        int num = 0; 
+        if(inventorySelectedPos.position == box1.transform.position) {
+            num = 0; 
+        }
+        else if (inventorySelectedPos.position == box2.transform.position)
+        {
+            num = 1;
+        }
+        else if (inventorySelectedPos.position == box3.transform.position)
+        {
+            num = 2;
+        }
+        else if (inventorySelectedPos.position == box4.transform.position)
+        {
+            num = 3;
+        }
+        else if (inventorySelectedPos.position == box5.transform.position)
+        {
+            num = 4;
+        }
+        else if (inventorySelectedPos.position == box6.transform.position)
+        {
+            num = 5;
+        }
+        else if (inventorySelectedPos.position == box7.transform.position)
+        {
+            num = 6;
+        }
+        else if (inventorySelectedPos.position == box8.transform.position)
+        {
+            num = 7;
+        }
+        else if (inventorySelectedPos.position == box9.transform.position)
+        {
+            num = 8;
+        }
+
+        GameObject block = new GameObject();
+
+        bool continueMethod = true;
+
+
+        switch (num)
+        {
+            case 0:
+                if (!box1.enabled)
+                {
+                    continueMethod = false;
+                    Debug.Log("end method");
+                }
+                break;
+            case 1:
+                break;
+            case 2:
+                break;
+            case 3:
+                break;
+            case 4:
+                break;
+            case 5:
+                break;
+            case 6:
+                break;
+            case 7:
+                break;
+            case 8:
+                break;
+            default:
+                Debug.Log("fel värde på num i PlaceBlock()");
+                break; 
+        }
+
+        if(continueMethod) // placera block i världen eller ät
+        {
+            Debug.Log("continue method");
+
+            string objectName = "";
+
+
+            if (block.tag == "Block")
+            {
+                Vector3 hitPosition = hit.point;
+                float hitPos_x = hitPosition.x;
+                float hitPos_y = hitPosition.y;
+                float hitPos_z = hitPosition.z;
+
+                Vector3 centerOfBlock = hit.collider.gameObject.transform.position;
+                float center_x = centerOfBlock.x;
+                float center_y = centerOfBlock.y;
+                float center_z = centerOfBlock.z;
+
+                float x = Math.Abs(hitPos_x - center_x);
+                float y = Math.Abs(hitPos_y - center_y);
+                float z = Math.Abs(hitPos_z - center_z);
+
+                float highestValue = x;
+                int n = 0;
+                if (y > highestValue)
+                {
+                    highestValue = y;
+                    n = 1;
+                }
+                if (z > highestValue)
+                {
+                    n = 2;
+                }
+
+                Vector3 blockPosition = new Vector3();
+                int i = 0;
+
+                switch (n)
+                {
+                    case 0:
+                        if ((hitPos_x - center_x) < 0)
+                            i--;
+                        else
+                            i++;
+                        blockPosition = new Vector3(center_x + (1f * i), center_y, center_z);
+                        break;
+                    case 1:
+                        if ((hitPos_y - center_y) < 0)
+                            i--;
+                        else
+                            i++;
+                        blockPosition = new Vector3(center_x, center_y + (1f * i), center_z);
+                        break;
+                    case 2:
+                        if ((hitPos_z - center_z) < 0)
+                            i--;
+                        else
+                            i++;
+                        blockPosition = new Vector3(center_x, center_y, center_z + (1f * i));
+                        break;
+                    default:
+                        break;
+                }
+
+                Debug.Log("clone object place block");
+                Collider collider = block.GetComponent<BoxCollider>();
+                Collider clone = Instantiate(collider, blockPosition, collider.transform.rotation, dirtTopSpawnParent);
+            }
+            else if(block.tag == "Animal")
+            {
+                //eatingSound.Play(0);
+                //Wait(eatingTime);
+                hasEaten = true; 
+            }
+            else
+            {
+                Debug.Log("något gick snett i if(continuteMethod) {} sats i PlaceOrEat()");
+            }
+
+            switch (num)
+            {
+                case 0:
+                    objectName = box1.texture.name.Substring(0, box1.texture.name.Length - 9);
+                    Debug.Log(objectName);
+                    block = Resources.Load<GameObject>(itemsURL + objectName + "Prefab");
+                    if (box1Text.enabled)
+                    {
+                        if (box1Text.text == "2")
+                            box1Text.enabled = false;
+                        else
+                        {
+                            int boxText = Int32.Parse(box1Text.text);
+                            boxText--;
+                            box1Text.text = "" + boxText;
+                        }
+                    }
+                    else
+                        box1.enabled = false;
+                    break;
+                case 1:
+                    break;
+                case 2:
+                    break;
+                case 3:
+                    break;
+                case 4:
+                    break;
+                case 5:
+                    break;
+                case 6:
+                    break;
+                case 7:
+                    break;
+                case 8:
+                    break;
+                default:
+                    Debug.Log("fel värde på num i PlaceBlock()");
+                    break;
+            }
+
+        }
+
+    }
+}
