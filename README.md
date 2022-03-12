@@ -1,4 +1,4 @@
-# minecraft
+# Minecraft
 help how do i upload my 1.4gb unity project on here i cant get lfs to work
 
 I've come to the conclusion that I won't be able to publish it all unless I fix Git lFS (please someone help me..). anyways here's some screnshots and info
