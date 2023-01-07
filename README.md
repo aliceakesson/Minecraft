@@ -1,7 +1,7 @@
 # Minecraft
 My senior exam project in which I attempt to code Minecraft with Unity in the span of ~6 months
 
-I've come to the conclusion that I won't be able to publish it all unless I fix Git lFS (please someone help me..). anyways here's some screnshots and info
+I've come to the conclusion that I won't be able to publish it all unless I fix Git lFS (please someone help me..). In the meantime, here's some screnshots and info
 
 Game includes: 
 - Basic moving mechanics (walk, crouch, sprint, jump)
